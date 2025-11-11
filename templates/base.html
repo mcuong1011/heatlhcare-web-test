@@ -540,7 +540,7 @@
         <div class="container">
           <a class="navbar-brand" href="{% url 'dashboard:home' %}">
             <i class="fas fa-hospital-alt me-2"></i>
-            KNH HMS
+            Healthcare Companion
           </a>
 
           <button
@@ -580,7 +580,9 @@
                   aria-expanded="false"
                 >
                   <i class="fas fa-user me-1"></i>
-                  {% if user.first_name and user.last_name %} {{ user.first_name }} {{ user.last_name }} {% else %} {{ user.email }} {% endif %}
+                  {% if user.first_name and user.last_name %} {{ user.first_name
+                  }} {{ user.last_name }} {% else %} {{ user.email }} {% endif
+                  %}
                 </a>
                 <div class="dropdown-menu">
                   <a class="dropdown-item" href="{% url 'accounts:profile' %}">
@@ -672,11 +674,13 @@
               <a class="nav-link" href="#">
                 <i class="fas fa-pills me-2"></i>Prescriptions
               </a>
-              {% endif %} {% if user.role in 'administrator,doctor,nurse,billing_staff' %}
+              {% endif %} {% if user.role in
+              'administrator,doctor,nurse,billing_staff' %}
               <a class="nav-link" href="#">
                 <i class="fas fa-bed me-2"></i>Wards
               </a>
-              {% endif %} {% if user.role in 'doctor,nurse,administrator,billing_staff' %}
+              {% endif %} {% if user.role in
+              'doctor,nurse,administrator,billing_staff' %}
               <a
                 class="nav-link"
                 href="{% url 'medical_records:medical_records_dashboard' %}"
@@ -687,7 +691,8 @@
               <a class="nav-link" href="#">
                 <i class="fas fa-chart-bar me-2"></i>Reports
               </a>
-              {% endif %} {% if user.is_superuser or user.role == 'administrator' %}
+              {% endif %} {% if user.is_superuser or user.role ==
+              'administrator' %}
               <div class="sidebar-section-header mt-4">
                 <h6
                   class="section-title text-muted text-uppercase small font-weight-bold"
@@ -737,7 +742,9 @@
       <div class="container">
         <div class="row">
           <div class="col-lg-4 col-md-6 mb-4">
-            <h5><i class="fas fa-hospital-alt me-2"></i>KNH HMS</h5>
+            <h5>
+              <i class="fas fa-hospital-alt me-2"></i>Healthcare Companion
+            </h5>
             <p>
               Providing comprehensive healthcare management solutions for modern
               hospitals. Our system streamlines patient care, appointment
@@ -848,7 +855,6 @@
       </div>
     </footer>
 
-
     <!-- DataTables JavaScript -->
     <script src="https://cdn.datatables.net/1.13.6/js/jquery.dataTables.min.js"></script>
     <script src="https://cdn.datatables.net/1.13.6/js/dataTables.bootstrap5.min.js"></script>
@@ -861,7 +867,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdfmake/0.1.53/vfs_fonts.js"></script>
     <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.html5.min.js"></script>
     <script src="https://cdn.datatables.net/buttons/2.4.2/js/buttons.print.min.js"></script>
-    
+
     <!-- Conditional JavaScript Loading -->
     {% if request.resolver_match.app_name == 'pharmacy' %}
     <script src="{% static 'pharmacy/js/script.js' %}"></script>
@@ -884,7 +890,7 @@
     {% endif %} {% if request.resolver_match.app_name == 'settings' %}
     <script src="{% static 'settings/js/settings.js' %}"></script>
     {% endif %}
-    
+
     <!-- Global JavaScript Functions -->
     <!-- jQuery (Full version for Bootstrap dropdowns) -->
     <script src="https://cdn.jsdelivr.net/npm/jquery@3.5.1/dist/jquery.min.js"></script>

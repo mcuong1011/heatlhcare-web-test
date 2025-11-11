@@ -1,6 +1,6 @@
 <nav class="sidebar" id="sidebar">
   <div class="sidebar-header">
-    <h2>KNH HMS</h2>
+    <h2>Healthcare Companion</h2>
     <p>Hospital Management System</p>
   </div>
   <ul class="sidebar-menu">
@@ -14,7 +14,8 @@
     </li>
 
     <!-- Patient Management - Only for Admin/Staff/Doctors -->
-    {% if user.role == 'doctor' or user.role == 'nurse' or user.role == 'administrator' or user.role == 'billing_staff' %}
+    {% if user.role == 'doctor' or user.role == 'nurse' or user.role ==
+    'administrator' or user.role == 'billing_staff' %}
     <li>
       <a
         href="{% url 'patients:patient_list' %}"
@@ -26,7 +27,8 @@
     {% endif %}
 
     <!-- Medical Records -->
-    {% if user.role == 'doctor' or user.role == 'nurse' or user.role == 'administrator' %}
+    {% if user.role == 'doctor' or user.role == 'nurse' or user.role ==
+    'administrator' %}
     <li>
       <a
         href="{% url 'medical_records:medical_records_dashboard' %}"

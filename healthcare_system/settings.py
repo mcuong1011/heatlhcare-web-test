@@ -1,14 +1,20 @@
 from pathlib import Path
+from decouple import config, Csv
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
-SECRET_KEY = 'django-insecure-p!a-wr!9=j5e9yz^!)*f^4mej+$ec8!h)vuf6ssr6(+o(&#-99'
+SECRET_KEY = config("SECRET_KEY")
 
-# SECURITY WARNING: don't run with debug turned on in production!
-DEBUG = True
+DEBUG = config("DEBUG", cast=bool, default=False)
 
-ALLOWED_HOSTS = []
+ALLOWED_HOSTS = config("ALLOWED_HOSTS", cast=Csv(), default="")
+
+CSRF_TRUSTED_ORIGINS = config("CSRF_TRUSTED_ORIGINS", cast=Csv(), default="")
+
+TIME_ZONE = config("TIME_ZONE", default="UTC")
+
+LANGUAGE_CODE = config("LANGUAGE_CODE", default="en-us")
 
 
 # Application definition
@@ -81,12 +87,28 @@ WSGI_APPLICATION = 'healthcare_system.wsgi.application'
 # https://docs.djangoproject.com/en/5.2/ref/settings/#databases
 
 DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+        "default": {
+            "ENGINE": "django.db.backends.mysql",
+            "NAME": config("DB_NAME"),
+            "USER": config("DB_USER"),
+            "PASSWORD": config("DB_PASSWORD"),
+            "HOST": config("DB_HOST", default="db"),
+            "PORT": config("DB_PORT", default="3306"),
+            "CONN_MAX_AGE": config("CONN_MAX_AGE", cast=int, default=60),
+            "OPTIONS": {
+                "charset": "utf8mb4",
+                "init_command": "SET sql_mode='STRICT_TRANS_TABLES'",
+            },
+        }
     }
-}
 
+EMAIL_BACKEND = config("EMAIL_BACKEND", default="django.core.mail.backends.console.EmailBackend")
+EMAIL_HOST = config("EMAIL_HOST", default=None)
+EMAIL_PORT = config("EMAIL_PORT", cast=int, default=0) or None
+EMAIL_USE_TLS = config("EMAIL_USE_TLS", cast=bool, default=False)
+EMAIL_HOST_USER = config("EMAIL_HOST_USER", default=None)
+EMAIL_HOST_PASSWORD = config("EMAIL_HOST_PASSWORD", default=None)
+DEFAULT_FROM_EMAIL = config("DEFAULT_FROM_EMAIL", default="webmaster@localhost")
 
 # Password validation
 # https://docs.djangoproject.com/en/5.2/ref/settings/#auth-password-validators

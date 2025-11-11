@@ -17,7 +17,7 @@ User = get_user_model()
 fake = Faker()
 
 class Command(BaseCommand):
-    help = 'Generate seed data for the KNH HMS'
+    help = 'Generate seed data for the Healthcare Companion'
 
     def add_arguments(self, parser):
         parser.add_argument(
