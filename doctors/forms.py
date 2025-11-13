@@ -1,8 +1,7 @@
 from django import forms
-
 from accounts.models import User
 from bookings.models import Prescription
-from ckeditor.widgets import CKEditorWidget
+
 
 
 class DoctorProfileForm(forms.ModelForm):
@@ -22,7 +21,7 @@ class PrescriptionForm(forms.ModelForm):
             "diagnosis": forms.Textarea(
                 attrs={"rows": 3, "class": "form-control"}
             ),
-            "medications": CKEditorWidget(config_name="default"),
+            # "medications": ...  # BỎ override, dùng widget mặc định của ProseEditorField
             "notes": forms.Textarea(
                 attrs={"rows": 3, "class": "form-control"}
             ),

@@ -33,7 +33,6 @@ urlpatterns = (
         path("bookings/", include("bookings.urls")),
         path("", include("core.urls")),
         path("__debug__/", include(debug_toolbar.urls)),
-        path("ckeditor/", include("ckeditor_uploader.urls")),
         path(
             "admin/",
             include(

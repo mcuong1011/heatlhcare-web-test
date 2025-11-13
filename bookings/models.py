@@ -1,6 +1,6 @@
 from django.db import models
 from django.conf import settings
-from ckeditor.fields import RichTextField
+from django_prose_editor.fields import ProseEditorField
 
 
 class Booking(models.Model):
@@ -56,7 +56,18 @@ class Prescription(models.Model):
     )
     symptoms = models.TextField()
     diagnosis = models.TextField()
-    medications = RichTextField()
+    medications = ProseEditorField(
+        extensions={
+            "Bold": True,
+            "Italic": True,
+            "BulletList": True,
+            "ListItem": True,
+            "Link": {
+                "protocols": ["http", "https", "mailto"],
+            },
+        },
+        sanitize=True,
+    )
     notes = models.TextField(blank=True)
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
