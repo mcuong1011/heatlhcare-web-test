@@ -239,7 +239,7 @@ def generate_fixtures():
         profile_id += 1
 
     # Write fixtures to file
-    with open("fixtures/initial_data.json", "w") as f:
+    with open("database_test/database_data.json", "w") as f:
         json.dump(fixtures, f, indent=2)
 
 

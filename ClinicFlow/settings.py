@@ -110,25 +110,7 @@ TIME_INPUT_FORMATS = [
 
 DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 
-# # CKEditor Configuration
-# CKEDITOR_UPLOAD_PATH = "uploads/"
-# CKEDITOR_IMAGE_BACKEND = "pillow"
-# CKEDITOR_JQUERY_URL = (
-#     "//ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js"
-# )
 
-# CKEDITOR_CONFIGS = {
-#     "default": {
-#         "toolbar": "full",
-#         "height": 300,
-#         "width": "100%",
-#         "extraPlugins": ",".join(
-#             ["widget", "dialog", "dialogui", "codesnippet"]
-#         ),
-#     },
-# }
-
-# CKEDITOR_BASEPATH = "/static/ckeditor/ckeditor/"
 DEBUG_TOOLBAR_CONFIG = {
     "IS_RUNNING_TESTS": False,
 }
