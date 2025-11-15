@@ -39,8 +39,6 @@
 # *.iml
 # *.ipr
 
-# CMake
-cmake-build-*/
 
 # Mongo Explorer plugin
 .idea/**/mongoSettings.xml
@@ -187,7 +185,7 @@ celerybeat.pid
 *.sage.py
 
 # Environments
-.env
+#.env
 venv
 env/
 venv/
