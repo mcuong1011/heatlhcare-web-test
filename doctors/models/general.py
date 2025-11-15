@@ -11,21 +11,41 @@ class TimeRange(models.Model):
     slots_per_hour = models.PositiveIntegerField(default=4)
 
     def get_slot_duration(self):
-        """Returns slot duration in minutes"""
+        """
+        Returns slot duration in minutes.
+        
+        Returns:
+            int: Duration in minutes (e.g., 15, 30, 60)
+        """
+        if self.slots_per_hour <= 0:
+            return 30  # Default to 30 minutes if invalid
         return 60 // self.slots_per_hour
 
     def get_available_slots(self, date):
         """
-        Returns list of available time slots for given date
-        Example: ['9:00', '9:15', '9:30', '9:45', '10:00', ...]
+        Returns list of available time slots for given date.
+        
+        Args:
+            date: datetime.date object
+            
+        Returns:
+            List of time strings in format ['09:00', '09:15', '09:30', ...]
         """
+        from datetime import datetime, timedelta
+        
         slot_duration = self.get_slot_duration()
-        # Implementation to generate slots based on start, end, and duration
         slots = []
-        current_time = self.start
-        while current_time < self.end:
-            slots.append(current_time.strftime("%H:%M"))
-            current_time += timedelta(minutes=slot_duration)
+        
+        # Convert time to datetime for arithmetic operations
+        current_dt = datetime.combine(date, self.start)
+        end_dt = datetime.combine(date, self.end)
+        
+        while current_dt < end_dt:
+            # Format as HH:MM
+            slots.append(current_dt.strftime("%H:%M"))
+            # Add duration
+            current_dt += timedelta(minutes=slot_duration)
+        
         return slots
 
     class Meta:

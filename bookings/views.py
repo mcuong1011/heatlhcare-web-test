@@ -123,7 +123,6 @@ class BookingCreateView(LoginRequiredMixin, View):
             User, username=username, role=User.RoleChoices.DOCTOR
         )
 
-        # Get form data
         date = request.POST.get("selected_date")
         time = request.POST.get("selected_time")
 
@@ -134,9 +133,23 @@ class BookingCreateView(LoginRequiredMixin, View):
             return redirect("bookings:doctor-booking-view", username=username)
 
         try:
-            # Convert string inputs to proper date/time objects
             appointment_date = datetime.strptime(date, "%Y-%m-%d").date()
             appointment_time = datetime.strptime(time, "%H:%M").time()
+
+            # ✅ IMPROVED: Check for existing bookings excluding cancelled ones
+            existing_booking = Booking.objects.filter(
+                doctor=doctor,
+                appointment_date=appointment_date,
+                appointment_time=appointment_time,
+                status__in=["pending", "confirmed"]  # Exclude cancelled/completed
+            ).exists()
+
+            if existing_booking:
+                messages.error(
+                    request,
+                    "This time slot is already booked. Please choose another time."
+                )
+                return redirect("bookings:doctor-booking-view", username=username)
 
             # Create the booking
             booking = Booking.objects.create(
@@ -144,15 +157,29 @@ class BookingCreateView(LoginRequiredMixin, View):
                 patient=request.user,
                 appointment_date=appointment_date,
                 appointment_time=appointment_time,
+                status="pending"
             )
 
-            messages.success(request, "Appointment booked successfully!")
+            messages.success(
+                request,
+                f"Appointment booked successfully for {appointment_date} at {appointment_time}"
+            )
             return redirect("bookings:booking-success", booking_id=booking.id)
 
-        except ValueError:
-            messages.error(request, "Invalid date or time format")
+        except ValueError as e:
+            messages.error(
+                request,
+                f"Invalid date or time format. Please try again. Error: {str(e)}"
+            )
         except Exception as e:
-            messages.error(request, str(e))
+            messages.error(
+                request,
+                f"An error occurred while booking. Please try again. Error: {str(e)}"
+            )
+            # ✅ IMPROVED: Log the error for debugging
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Booking error for doctor {username}: {str(e)}", exc_info=True)
 
         return redirect("bookings:doctor-booking-view", username=username)
 

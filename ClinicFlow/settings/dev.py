@@ -6,6 +6,13 @@ SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY", "dev‐unsafe‐secret")
 
 ALLOWED_HOSTS = ["127.0.0.1", "localhost", "[::1]"]
 
+CSRF_TRUSTED_ORIGINS = [
+    "http://localhost:8000",
+    "http://127.0.0.1:8000",
+    "http://localhost:3000",  # If you have a frontend
+    "http://127.0.0.1:3000",
+]
+
 TIME_ZONE = os.environ.get("TIME_ZONE", "Asia/Bangkok")
 
 DATABASES = {

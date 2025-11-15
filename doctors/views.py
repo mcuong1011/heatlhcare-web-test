@@ -317,7 +317,7 @@ class UpdateExperienceAPIView(DoctorRequiredMixin, UpdateAPIView):
 
         for i in range(len(institutions)):
             try:
-                instance = self.request.user.educations.get(id=ids[i])
+                instance = self.request.user.experiences.get(id=ids[i])
                 institution = institutions[i]
                 from_year = from_years[i]
                 to_year = to_years[i]
@@ -334,11 +334,14 @@ class UpdateExperienceAPIView(DoctorRequiredMixin, UpdateAPIView):
                 )
                 serializer.is_valid(raise_exception=True)
                 self.perform_update(serializer)
-            except:
+                
+            except Experience.DoesNotExist:
+                # ✅ IMPROVED: Create new experience if ID doesn't exist
                 institution = institutions[i]
                 from_year = from_years[i]
                 to_year = to_years[i]
                 designation = designations[i]
+                
                 serializer = self.get_serializer(
                     data={
                         "institution": institution,
@@ -349,6 +352,12 @@ class UpdateExperienceAPIView(DoctorRequiredMixin, UpdateAPIView):
                 )
                 serializer.is_valid(raise_exception=True)
                 self.perform_update(serializer)
+            except Exception as e:
+                # ✅ IMPROVED: Log the error for debugging
+                import logging
+                logger = logging.getLogger(__name__)
+                logger.error(f"Error updating experience: {str(e)}")
+                raise
 
         return render_toast_message_for_api(
             "Experience", "Updated successfully", "success"

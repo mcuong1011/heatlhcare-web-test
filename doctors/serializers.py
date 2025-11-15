@@ -23,6 +23,19 @@ class RegistrationNumberSerializer(serializers.ModelSerializer):
 
 
 class SpecializationSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = User
-        fields = ["id", "specialization"]
+    specialization = serializers.CharField(
+        max_length=255,
+        required=False,
+        allow_blank=True,
+        help_text="Doctor's area of specialization"
+    )
+
+    def validate_specialization(self, value):
+        """
+        Validate specialization field.
+        """
+        if value and len(value) > 255:
+            raise serializers.ValidationError(
+                "Specialization must be 255 characters or less"
+            )
+        return value

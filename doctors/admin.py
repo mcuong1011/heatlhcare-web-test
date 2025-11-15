@@ -6,6 +6,7 @@ from .models import (
     Saturday,
     Sunday,
     Monday,
+    Tuesday,
     Wednesday,
     Thursday,
     Friday,
@@ -17,6 +18,7 @@ admin.site.register(TimeRange)
 admin.site.register(Saturday)
 admin.site.register(Sunday)
 admin.site.register(Monday)
+admin.site.register(Tuesday)
 admin.site.register(Wednesday)
 admin.site.register(Thursday)
 admin.site.register(Friday)
