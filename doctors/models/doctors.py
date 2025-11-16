@@ -39,25 +39,25 @@ class Experience(models.Model):
         return f"{self.user.get_full_name()} -> {self.institution}"
 
 
-class Review(models.Model):
-    doctor = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="doctor_reviews"
-    )
-    patient = models.ForeignKey(
-        User, on_delete=models.CASCADE, related_name="patient_reviews"
-    )
-    rating = models.PositiveSmallIntegerField(
-        choices=[(i, i) for i in range(1, 6)]
-    )
-    comment = models.TextField()
-    created_at = models.DateTimeField(auto_now_add=True)
+# class Review(models.Model):
+#     doctor = models.ForeignKey(
+#         User, on_delete=models.CASCADE, related_name="doctor_reviews"
+#     )
+#     patient = models.ForeignKey(
+#         User, on_delete=models.CASCADE, related_name="patient_reviews"
+#     )
+#     rating = models.PositiveSmallIntegerField(
+#         choices=[(i, i) for i in range(1, 6)]
+#     )
+#     comment = models.TextField()
+#     created_at = models.DateTimeField(auto_now_add=True)
 
-    class Meta:
-        unique_together = ["doctor", "patient"]
-        ordering = ["-created_at"]
+#     class Meta:
+#         unique_together = ["doctor", "patient"]
+#         ordering = ["-created_at"]
 
 
-class Specialty(models.Model):
-    name = models.CharField(max_length=100)
-    description = models.TextField()
-    doctors = models.ManyToManyField(User, related_name="specialties")
+# class Specialty(models.Model):
+#     name = models.CharField(max_length=100)
+#     description = models.TextField()
+#     doctors = models.ManyToManyField(User, related_name="specialties")

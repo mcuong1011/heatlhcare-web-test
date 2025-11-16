@@ -16,7 +16,7 @@ class Booking(models.Model):
         related_name="patient_appointments",
         limit_choices_to={"role": "patient"},
     )
-    appointment_date = models.DateField()
+    appointment_date = models.DateField(db_index=True)  # ✅ ADD INDEX
     appointment_time = models.TimeField()
     booking_date = models.DateTimeField(auto_now_add=True)
     status = models.CharField(
@@ -29,16 +29,20 @@ class Booking(models.Model):
             ("no_show", "No Show"),
         ],
         default="pending",
+        db_index=True,  # ✅ ADD INDEX
     )
 
     class Meta:
         ordering = ["-appointment_date", "-appointment_time"]
-        # Ensure no double bookings for same doctor at same time
         unique_together = ["doctor", "appointment_date", "appointment_time"]
+        indexes = [  # ✅ ADD COMPOSITE INDEXES
+            models.Index(fields=["doctor", "appointment_date"]),
+            models.Index(fields=["patient", "appointment_date"]),
+            models.Index(fields=["status", "appointment_date"]),
+        ]
 
     def __str__(self):
         return f"Appointment with Dr. {self.doctor.get_full_name()} on {self.appointment_date} at {self.appointment_time}"
-
 
 class Prescription(models.Model):
     booking = models.OneToOneField(

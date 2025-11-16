@@ -17,9 +17,17 @@ class TimeRange(models.Model):
         Returns:
             int: Duration in minutes (e.g., 15, 30, 60)
         """
-        if self.slots_per_hour <= 0:
+        if self.slots_per_hour is None or self.slots_per_hour <= 0:
             return 30  # Default to 30 minutes if invalid
-        return 60 // self.slots_per_hour
+        
+        # Ensure slots_per_hour is reasonable (1-12 slots per hour)
+        if self.slots_per_hour > 12:
+            self.slots_per_hour = 12
+
+        duration = 60 // self.slots_per_hour
+    
+        # Ensure duration is at least 5 minutes
+        return max(5, duration)
 
     def get_available_slots(self, date):
         """

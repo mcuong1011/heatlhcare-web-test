@@ -61,8 +61,8 @@ class User(AbstractUser):
 
     @property
     def rating(self):
-        # Implement your rating logic here
-        return 4  # Default value
+        """Calculate average rating from reviews"""
+        return self.average_rating
 
     @property
     def average_rating(self):

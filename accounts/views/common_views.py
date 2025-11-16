@@ -125,7 +125,6 @@ class UpdateBasicUserInformationAPIView(LoginRequiredMixin, UpdateAPIView):
     def put(self, request, *args, **kwargs):
         try:
             user = request.user
-            # Handle both JSON and form data
             data = request.data if hasattr(request, 'data') else request.POST
             files = request.FILES
 
@@ -136,8 +135,24 @@ class UpdateBasicUserInformationAPIView(LoginRequiredMixin, UpdateAPIView):
 
             # Update profile information
             user_profile = user.profile
-            user_profile.dob = data.get("dob")
-            user_profile.phone = data.get("phone")
+            
+            # ✅ ADD: Validate DOB
+            dob = data.get("dob")
+            if dob:
+                from datetime import datetime
+                try:
+                    dob_date = datetime.strptime(dob, "%Y-%m-%d").date()
+                    if dob_date > datetime.now().date():
+                        return render_toast_message_for_api(
+                            "Error", "Date of birth cannot be in the future", "error"
+                        )
+                    user_profile.dob = dob_date
+                except ValueError:
+                    return render_toast_message_for_api(
+                        "Error", "Invalid date format", "error"
+                    )
+            
+            user_profile.phone = data.get("phone", user_profile.phone)
 
             # Handle avatar file upload
             if "avatar" in files:
@@ -149,4 +164,7 @@ class UpdateBasicUserInformationAPIView(LoginRequiredMixin, UpdateAPIView):
                 "Information", "Updated successfully", "success"
             )
         except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Profile update error: {str(e)}", exc_info=True)
             return render_toast_message_for_api("Error", str(e), "error")

@@ -10,7 +10,7 @@ from accounts.models import User
 from doctors.models.general import TimeRange
 from mixins.custom_mixins import PatientRequiredMixin
 from .models import Booking
-
+from django_ratelimit.decorators import ratelimit
 
 class BookingView(LoginRequiredMixin, View):
     template_name = "bookings/booking.html"
@@ -112,6 +112,7 @@ class BookingView(LoginRequiredMixin, View):
         return render(request, self.template_name, context)
 
 
+@method_decorator(ratelimit(key='user', rate='10/h'), name='dispatch')
 class BookingCreateView(LoginRequiredMixin, View):
     template_name = "bookings/booking.html"
 
@@ -120,12 +121,13 @@ class BookingCreateView(LoginRequiredMixin, View):
 
     def post(self, request, username):
         doctor = get_object_or_404(
-            User, username=username, role=User.RoleChoices.DOCTOR
+            User, username=username, role=User.RoleChoices.DOCTOR, is_active=True
         )
 
         date = request.POST.get("selected_date")
         time = request.POST.get("selected_time")
 
+        # Validate inputs
         if not date or not time:
             messages.error(
                 request, "Please select both date and time for the appointment"
@@ -135,19 +137,73 @@ class BookingCreateView(LoginRequiredMixin, View):
         try:
             appointment_date = datetime.strptime(date, "%Y-%m-%d").date()
             appointment_time = datetime.strptime(time, "%H:%M").time()
+            
+            # ✅ NEW: Check if date is in the past
+            from django.utils import timezone
+            now = timezone.now()
+            appointment_datetime = timezone.make_aware(
+                datetime.combine(appointment_date, appointment_time)
+            )
+            
+            if appointment_datetime < now:
+                messages.error(
+                    request,
+                    "Cannot book appointments in the past. Please select a future date and time."
+                )
+                return redirect("bookings:doctor-booking-view", username=username)
 
             # ✅ IMPROVED: Check for existing bookings excluding cancelled ones
             existing_booking = Booking.objects.filter(
                 doctor=doctor,
                 appointment_date=appointment_date,
                 appointment_time=appointment_time,
-                status__in=["pending", "confirmed"]  # Exclude cancelled/completed
+                status__in=["pending", "confirmed"]
             ).exists()
 
             if existing_booking:
                 messages.error(
                     request,
                     "This time slot is already booked. Please choose another time."
+                )
+                return redirect("bookings:doctor-booking-view", username=username)
+
+            # ✅ NEW: Check if doctor is available on this day
+            day_name = appointment_date.strftime("%A").lower()
+            day_schedule = getattr(doctor, day_name, None)
+            
+            if not day_schedule or not day_schedule.time_range.exists():
+                messages.error(
+                    request,
+                    f"Doctor is not available on {appointment_date.strftime('%A')}s. Please choose another day."
+                )
+                return redirect("bookings:doctor-booking-view", username=username)
+            
+            # ✅ NEW: Verify time is within doctor's working hours
+            is_valid_time = False
+            for time_range in day_schedule.time_range.all():
+                if time_range.start <= appointment_time <= time_range.end:
+                    is_valid_time = True
+                    break
+            
+            if not is_valid_time:
+                messages.error(
+                    request,
+                    "Selected time is outside doctor's working hours. Please choose a valid time slot."
+                )
+                return redirect("bookings:doctor-booking-view", username=username)
+
+            # ✅ NEW: Prevent double booking by same patient
+            patient_existing = Booking.objects.filter(
+                patient=request.user,
+                appointment_date=appointment_date,
+                appointment_time=appointment_time,
+                status__in=["pending", "confirmed"]
+            ).exists()
+            
+            if patient_existing:
+                messages.error(
+                    request,
+                    "You already have an appointment at this time. Please choose a different time."
                 )
                 return redirect("bookings:doctor-booking-view", username=username)
 
@@ -162,21 +218,21 @@ class BookingCreateView(LoginRequiredMixin, View):
 
             messages.success(
                 request,
-                f"Appointment booked successfully for {appointment_date} at {appointment_time}"
+                f"Appointment booked successfully for {appointment_date} at {appointment_time.strftime('%I:%M %p')}"
             )
             return redirect("bookings:booking-success", booking_id=booking.id)
 
         except ValueError as e:
             messages.error(
                 request,
-                f"Invalid date or time format. Please try again. Error: {str(e)}"
+                f"Invalid date or time format. Please try again."
             )
         except Exception as e:
             messages.error(
                 request,
-                f"An error occurred while booking. Please try again. Error: {str(e)}"
+                "An unexpected error occurred. Please try again."
             )
-            # ✅ IMPROVED: Log the error for debugging
+            # Log the error
             import logging
             logger = logging.getLogger(__name__)
             logger.error(f"Booking error for doctor {username}: {str(e)}", exc_info=True)

@@ -43,6 +43,7 @@ from mixins.custom_mixins import DoctorRequiredMixin
 from patients.forms import ChangePasswordForm
 from utils.htmx import render_toast_message_for_api
 from accounts.models import User
+from django.db import transaction
 
 days = {
     0: Sunday,
@@ -157,9 +158,12 @@ class DoctorProfileView(DetailView):
             queryset = self.get_queryset()
 
         slug = self.kwargs.get(self.slug_url_kwarg)
+        
+        # ✅ OPTIMIZED: Single query with select_related and prefetch_related
         queryset = queryset.select_related("profile").prefetch_related(
             "educations",
             "experiences",
+            "reviews_received__patient__profile",  # ✅ ADD THIS
             "sunday__time_range",
             "monday__time_range",
             "tuesday__time_range",
@@ -237,6 +241,8 @@ class DoctorProfileView(DetailView):
         return context
 
 
+from django.db import transaction
+
 class UpdateEducationAPIView(DoctorRequiredMixin, UpdateAPIView):
     queryset = Experience.objects.all()
     serializer_class = EducationSerializer
@@ -247,55 +253,63 @@ class UpdateEducationAPIView(DoctorRequiredMixin, UpdateAPIView):
     def perform_update(self, serializer):
         serializer.save(user_id=self.request.user.id)
 
+    @transaction.atomic  # ✅ ADD THIS
     def update(self, request, *args, **kwargs):
         data = request.POST
         ids = data.getlist("id", default=[])
         degrees = data.getlist("degree", default=[])
         colleges = data.getlist("college", default=[])
         years = data.getlist("year_of_completion", default=[])
+        
+        errors = []
+        
         for i in range(len(degrees)):
             try:
-                instance = self.request.user.educations.get(id=ids[i])
-                degree = degrees[i]
-                college = colleges[i]
-                year_of_completion = years[i]
-                serializer = self.get_serializer(
-                    instance,
-                    data={
-                        "degree": degree,
-                        "college": college,
-                        "year_of_completion": year_of_completion,
-                    },
-                    partial=True,
-                )
-                serializer.is_valid(raise_exception=True)
-                self.perform_update(serializer)
-            except:
-                degree = degrees[i]
-                college = colleges[i]
-                year_of_completion = years[i]
-                serializer = self.get_serializer(
-                    data={
-                        "degree": degree,
-                        "college": college,
-                        "year_of_completion": year_of_completion,
-                    }
-                )
-                serializer.is_valid(raise_exception=True)
-                self.perform_update(serializer)
+                if i < len(ids) and ids[i]:
+                    # Update existing
+                    try:
+                        instance = self.request.user.educations.get(id=ids[i])
+                        serializer = self.get_serializer(
+                            instance,
+                            data={
+                                "degree": degrees[i],
+                                "college": colleges[i],
+                                "year_of_completion": years[i] if i < len(years) else None,
+                            },
+                            partial=True,
+                        )
+                        serializer.is_valid(raise_exception=True)
+                        self.perform_update(serializer)
+                    except Exception as e:
+                        errors.append(f"Error updating education {i+1}: {str(e)}")
+                else:
+                    # Create new
+                    serializer = self.get_serializer(
+                        data={
+                            "degree": degrees[i],
+                            "college": colleges[i],
+                            "year_of_completion": years[i] if i < len(years) else None,
+                        }
+                    )
+                    serializer.is_valid(raise_exception=True)
+                    self.perform_update(serializer)
+            except Exception as e:
+                errors.append(f"Error processing education {i+1}: {str(e)}")
 
-        response = Response({"success": True})
-        response.headers["HX-Trigger"] = json.dumps(
-            {
-                "show-toast": {
-                    "level": "success",
-                    "title": "Education",
-                    "message": "Successfully updated",
-                }
-            }
+        if errors:
+            return render_toast_message_for_api(
+                "Education", "; ".join(errors), "error"
+            )
+
+        return render_toast_message_for_api(
+            "Education", "Updated successfully", "success"
         )
-        return response
 
+from django.db import transaction
+import logging
+
+# Configure logger
+logger = logging.getLogger(__name__)
 
 class UpdateExperienceAPIView(DoctorRequiredMixin, UpdateAPIView):
     queryset = Experience.objects.all()
@@ -307,62 +321,70 @@ class UpdateExperienceAPIView(DoctorRequiredMixin, UpdateAPIView):
     def perform_update(self, serializer):
         serializer.save(user_id=self.request.user.id)
 
+    @transaction.atomic  # ✅ Added transaction
     def update(self, request, *args, **kwargs):
         data = request.POST
+        
+        # Get all lists from the form data
         ids = data.getlist("id", default=[])
         institutions = data.getlist("institution", default=[])
         from_years = data.getlist("from_year", default=[])
         to_years = data.getlist("to_year", default=[])
         designations = data.getlist("designation", default=[])
 
+        errors = []  # ✅ List to collect errors
+
+        # Loop based on the main field, 'institutions'
         for i in range(len(institutions)):
             try:
-                instance = self.request.user.experiences.get(id=ids[i])
-                institution = institutions[i]
-                from_year = from_years[i]
-                to_year = to_years[i]
-                designation = designations[i]
-                serializer = self.get_serializer(
-                    instance,
-                    data={
-                        "institution": institution,
-                        "from_year": from_year,
-                        "to_year": to_year,
-                        "designation": designation,
-                    },
-                    partial=True,
-                )
-                serializer.is_valid(raise_exception=True)
-                self.perform_update(serializer)
-                
-            except Experience.DoesNotExist:
-                # ✅ IMPROVED: Create new experience if ID doesn't exist
-                institution = institutions[i]
-                from_year = from_years[i]
-                to_year = to_years[i]
-                designation = designations[i]
-                
-                serializer = self.get_serializer(
-                    data={
-                        "institution": institution,
-                        "from_year": from_year,
-                        "to_year": to_year,
-                        "designation": designation,
-                    }
-                )
-                serializer.is_valid(raise_exception=True)
-                self.perform_update(serializer)
-            except Exception as e:
-                # ✅ IMPROVED: Log the error for debugging
-                import logging
-                logger = logging.getLogger(__name__)
-                logger.error(f"Error updating experience: {str(e)}")
-                raise
+                # Consolidate data for this item
+                experience_data = {
+                    "institution": institutions[i],
+                    # Add safety checks
+                    "from_year": from_years[i] if i < len(from_years) else None,
+                    "to_year": to_years[i] if i < len(to_years) else None,
+                    "designation": designations[i] if i < len(designations) else None,
+                }
 
+                # ✅ Check if a valid ID was provided to decide between update/create
+                if i < len(ids) and ids[i]:
+                    # This is an UPDATE
+                    try:
+                        instance = self.request.user.experiences.get(id=ids[i])
+                        serializer = self.get_serializer(
+                            instance,
+                            data=experience_data,
+                            partial=True,
+                        )
+                        serializer.is_valid(raise_exception=True)
+                        self.perform_update(serializer)
+                    except Exception as e:
+                        # ✅ Catch error for this specific item
+                        logger.error(f"Error updating experience {ids[i]}: {str(e)}")
+                        errors.append(f"Error updating experience {i+1}: {str(e)}")
+                else:
+                    # This is a CREATE
+                    serializer = self.get_serializer(
+                        data=experience_data
+                    )
+                    serializer.is_valid(raise_exception=True)
+                    self.perform_update(serializer)
+                    
+            except Exception as e:
+                # ✅ Catch error for processing this item
+                logger.error(f"Error processing experience item {i+1}: {str(e)}")
+                errors.append(f"Error processing experience {i+1}: {str(e)}")
+
+        # ✅ Check for errors after the loop
+        if errors:
+            return render_toast_message_for_api(
+                "Experience", "; ".join(errors), "error"
+            )
+
+        # ✅ Return success if no errors
         return render_toast_message_for_api(
             "Experience", "Updated successfully", "success"
         )
-
 
 class UpdateRegistrationNumberAPIView(DoctorRequiredMixin, UpdateAPIView):
     serializer_class = RegistrationNumberSerializer
@@ -663,19 +685,37 @@ class PrescriptionCreateView(DoctorRequiredMixin, CreateView):
         )
 
 
-class PrescriptionDetailView(DoctorRequiredMixin, DetailView):
+class PrescriptionDetailView(DetailView):
     model = Prescription
     template_name = "doctors/prescription_detail.html"
     context_object_name = "prescription"
 
     def get_queryset(self):
-        # Only allow doctors to view prescriptions they wrote
-        return Prescription.objects.filter(
-            doctor=self.request.user
-        ).select_related(
-            "doctor",
-            "doctor__profile",
-            "patient",
-            "patient__profile",
-            "booking",
-        )
+        user = self.request.user
+        
+        # Doctors can view prescriptions they wrote
+        if user.role == 'doctor':
+            return Prescription.objects.filter(
+                doctor=user
+            ).select_related(
+                "doctor",
+                "doctor__profile",
+                "patient",
+                "patient__profile",
+                "booking",
+            )
+        
+        # Patients can view their own prescriptions
+        elif user.role == 'patient':
+            return Prescription.objects.filter(
+                patient=user
+            ).select_related(
+                "doctor",
+                "doctor__profile",
+                "patient",
+                "patient__profile",
+                "booking",
+            )
+        
+        # No access for others
+        return Prescription.objects.none()
