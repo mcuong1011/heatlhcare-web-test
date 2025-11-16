@@ -11,6 +11,7 @@ from doctors.models.general import TimeRange
 from mixins.custom_mixins import PatientRequiredMixin
 from .models import Booking
 from django_ratelimit.decorators import ratelimit
+from django.utils.decorators import method_decorator
 
 class BookingView(LoginRequiredMixin, View):
     template_name = "bookings/booking.html"

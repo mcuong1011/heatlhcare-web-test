@@ -39,6 +39,12 @@ class DoctorRegistrationForm(UserCreationForm):
             }
         )
 
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if email and User.objects.filter(email=email).exists():
+            raise forms.ValidationError('A user with this email already exists.')
+        return email
+
     class Meta:
         model = User
         fields = [
@@ -70,6 +76,12 @@ class DoctorRegistrationForm(UserCreationForm):
 class PatientRegistrationForm(UserCreationForm):
     first_name = forms.CharField(required=True)
     last_name = forms.CharField(required=True)
+
+    def clean_email(self):
+        email = self.cleaned_data.get('email')
+        if email and User.objects.filter(email=email).exists():
+            raise forms.ValidationError('A user with this email already exists.')
+        return email
 
     class Meta:
         model = User
