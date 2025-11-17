@@ -9,12 +9,14 @@ class Booking(models.Model):
         on_delete=models.CASCADE,
         related_name="appointments",
         limit_choices_to={"role": "doctor"},
+        db_index=True, 
     )
     patient = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.CASCADE,
         related_name="patient_appointments",
         limit_choices_to={"role": "patient"},
+        db_index=True,
     )
     appointment_date = models.DateField(db_index=True)  # ✅ ADD INDEX
     appointment_time = models.TimeField()

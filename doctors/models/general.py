@@ -21,10 +21,9 @@ class TimeRange(models.Model):
             return 30  # Default to 30 minutes if invalid
         
         # Ensure slots_per_hour is reasonable (1-12 slots per hour)
-        if self.slots_per_hour > 12:
-            self.slots_per_hour = 12
+        slots = min(max(int(self.slots_per_hour), 1), 12)
 
-        duration = 60 // self.slots_per_hour
+        duration = 60 // slots
     
         # Ensure duration is at least 5 minutes
         return max(5, duration)

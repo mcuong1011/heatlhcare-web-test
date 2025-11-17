@@ -41,31 +41,47 @@ class BookingView(LoginRequiredMixin, View):
         day_name = date.strftime("%A").lower()
         day_schedule = getattr(doctor, day_name, None)
 
-        if not day_schedule:
+        if not day_schedule or not day_schedule.time_range.exists():
             return []
 
+        booked_times = set(
+            doctor.appointments.filter(
+                appointment_date=date,
+                status__in=["pending", "confirmed"]
+            ).values_list('appointment_time', flat=True)
+        )
+
         time_slots = []
+        now = timezone.now()
+
         for time_range in day_schedule.time_range.all():
+
+            # Get slot duration
+            slot_duration = time_range.get_slot_duration()
+
             # Convert time range to slots (e.g., 30-minute intervals)
             current_time = datetime.combine(date, time_range.start)
             end_time = datetime.combine(date, time_range.end)
 
-            while current_time < end_time:
-                # Check if slot is already booked
-                is_booked = doctor.appointments.filter(
-                    appointment_date=date, appointment_time=current_time.time()
-                ).exists()
+            # Limit to prevent excessive iterations
+            max_slots = 50
+            slot_count = 0
 
-                if not is_booked:
-                    time_slots.append(
-                        {
-                            "time": current_time.time(),
-                            "formatted_time": current_time.strftime(
-                                "%I:%M %p"
-                            ),
-                        }
-                    )
-                current_time += timedelta(minutes=30)
+            while current_time < end_time and slot_count < max_slots:
+                # Skip past times
+                if date == now.date() and current_time.time() < now.time():
+                    current_time += timedelta(minutes=slot_duration)
+                    continue
+            
+                # Check if slot is available
+                if current_time.time() not in booked_times:
+                    time_slots.append({
+                    "time": current_time.time(),
+                    "formatted_time": current_time.strftime("%I:%M %p"),
+                })
+            
+                current_time += timedelta(minutes=slot_duration)
+                slot_count += 1
 
         return time_slots
 
@@ -148,16 +164,27 @@ class BookingCreateView(LoginRequiredMixin, View):
             
             # FIX: Use atomic transaction with select_for_update to prevent race condition
             with transaction.atomic():
-                # Lock the doctor's schedule for this slot
-                locked_bookings = Booking.objects.select_for_update().filter(
+                # Lock BOTH doctor's schedule AND patient's schedule
+                locked_doctor_bookings = Booking.objects.select_for_update().filter(
                     doctor=doctor,
                     appointment_date=appointment_date,
                     appointment_time=appointment_time,
                     status__in=["pending", "confirmed"]
                 )
-                
-                if locked_bookings.exists():
+
+                locked_patient_bookings = Booking.objects.select_for_update().filter(
+                    patient=request.user,
+                    appointment_date=appointment_date,
+                    appointment_time=appointment_time,
+                    status__in=["pending", "confirmed"]
+                )
+
+                if locked_doctor_bookings.exists():
                     messages.error(request, "This time slot is already booked")
+                    return redirect("bookings:doctor-booking-view", username=username)
+                
+                if locked_patient_bookings.exists():
+                    messages.error(request, "You already have an appointment at this time")
                     return redirect("bookings:doctor-booking-view", username=username)
                 
                 # Verify doctor availability

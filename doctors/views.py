@@ -27,6 +27,7 @@ from django.db.models import Count
 from django.utils import timezone
 from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
+from django.contrib.auth.mixins import LoginRequiredMixin
 
 from bookings.models import Booking, Prescription
 from core.decorators import user_is_doctor
@@ -434,16 +435,17 @@ class DoctorsListView(ListView):
             is_superuser=False, 
             is_active=True
         ).select_related("profile").prefetch_related(
-            # FIX: Prefetch reviews to avoid N+1
             Prefetch(
                 'reviews_received',
                 queryset=Review.objects.select_related('patient', 'patient__profile')
             )
         )
 
-        # Handle search query
-        search_query = self.request.GET.get("q")
+        # Handle search query - sanitize input
+        search_query = self.request.GET.get("q", "").strip()
         if search_query:
+            # Limit search query length to prevent DOS
+            search_query = search_query[:100]
             queryset = queryset.filter(
                 Q(first_name__icontains=search_query)
                 | Q(last_name__icontains=search_query)
@@ -451,31 +453,40 @@ class DoctorsListView(ListView):
                 | Q(profile__city__icontains=search_query)
             )
 
-        # Handle gender filter
+        # Handle gender filter - validate against allowed values
         gender = self.request.GET.getlist("gender")
+        allowed_genders = ['male', 'female', 'other']
         if gender:
-            queryset = queryset.filter(profile__gender__in=gender)
+            validated_genders = [g for g in gender if g in allowed_genders]
+            if validated_genders:
+                queryset = queryset.filter(profile__gender__in=validated_genders)
 
-        # Handle specialization filter
+        # Handle specialization filter - validate against existing specializations
         specializations = self.request.GET.getlist("specialization")
         if specializations:
-            queryset = queryset.filter(
-                profile__specialization__in=specializations
-            )
-
-        # Handle sorting
-        sort_by = self.request.GET.get("sort")
-        if sort_by:
-            if sort_by == "price_low":
-                queryset = queryset.order_by("profile__price_per_consultation")
-            elif sort_by == "price_high":
-                queryset = queryset.order_by(
-                    "-profile__price_per_consultation"
+            # Sanitize and validate
+            valid_specializations = []
+            for spec in specializations:
+                cleaned_spec = spec.strip()[:255]  # Limit length
+                if cleaned_spec:
+                    valid_specializations.append(cleaned_spec)
+            
+            if valid_specializations:
+                queryset = queryset.filter(
+                    profile__specialization__in=valid_specializations
                 )
-            elif sort_by == "rating":
-                queryset = queryset.order_by("-rating")
-            elif sort_by == "experience":
-                queryset = queryset.order_by("-profile__experience")
+
+        # Handle sorting - validate against allowed values
+        sort_by = self.request.GET.get("sort", "").strip()
+        allowed_sorts = {
+            "price_low": "profile__price_per_consultation",
+            "price_high": "-profile__price_per_consultation",
+            "rating": "-rating",
+            "experience": "-profile__experience"
+        }
+        
+        if sort_by in allowed_sorts:
+            queryset = queryset.order_by(allowed_sorts[sort_by])
         else:
             queryset = queryset.order_by("-pk")
 
@@ -694,13 +705,16 @@ class PrescriptionCreateView(DoctorRequiredMixin, CreateView):
         )
 
 
-class PrescriptionDetailView(DetailView):
+class PrescriptionDetailView(LoginRequiredMixin, DetailView):
     model = Prescription
     template_name = "doctors/prescription_detail.html"
     context_object_name = "prescription"
 
     def get_queryset(self):
         user = self.request.user
+        
+        if not user.is_authenticated:
+            return Prescription.objects.none()
         
         # Doctors can view prescriptions they wrote
         if user.role == 'doctor':
@@ -726,5 +740,14 @@ class PrescriptionDetailView(DetailView):
                 "booking",
             )
         
-        # No access for others
+        # No access for others (including superusers accessing via URL)
         return Prescription.objects.none()
+    
+    def dispatch(self, request, *args, **kwargs):
+        # Verify the prescription exists and user has access
+        try:
+            self.get_object()
+        except:
+            from django.http import Http404
+            raise Http404("Prescription not found or access denied")
+        return super().dispatch(request, *args, **kwargs)

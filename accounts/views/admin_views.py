@@ -1,3 +1,4 @@
+from multiprocessing import context
 from django.views.generic import TemplateView
 from django.db.models import Count, Sum, Avg
 from accounts.decorators import AdminRequiredMixin
@@ -7,7 +8,7 @@ from django.contrib import messages
 from django.urls import reverse_lazy
 from django.views.generic.edit import CreateView, UpdateView, DeleteView
 from django.db.models.functions import TruncMonth, TruncDay
-from django.db.models import Count, Sum, Q
+from django.db.models import Count, Sum, Q, F, Case, When, IntegerField
 from django.utils import timezone
 from datetime import timedelta
 from django.core.serializers.json import DjangoJSONEncoder
@@ -17,6 +18,8 @@ from decimal import Decimal
 from core.models import Review, Speciality
 from accounts.models import User
 from bookings.models import Booking, Prescription
+from doctors.models import doctors
+import patients
 
 
 class AdminDashboardView(AdminRequiredMixin, TemplateView):
@@ -25,58 +28,65 @@ class AdminDashboardView(AdminRequiredMixin, TemplateView):
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        # Count statistics
-        context["doctors_count"] = User.objects.filter(role="doctor").count()
-        context["patients_count"] = User.objects.filter(role="patient").count()
-        context["appointments_count"] = Booking.objects.count()
-
-        # Calculate total revenue
-        context["total_revenue"] = (
-            Booking.objects.filter(status="completed").aggregate(
-                total=Sum("doctor__profile__price_per_consultation")
-            )["total"]
-            or 0
+        stats = User.objects.aggregate(
+            doctors_count=Count('id', filter=Q(role='doctor')),
+            patients_count=Count('id', filter=Q(role='patient'))
         )
 
-        # Get recent doctors with their stats
-        doctors = User.objects.filter(role="doctor").select_related("profile")[:5]
-        for doctor in doctors:
-            doctor.earned = (
-                Booking.objects.filter(doctor=doctor, status="completed").aggregate(
-                    total=Sum("doctor__profile__price_per_consultation")
-                )["total"]
-                or 0
-            )
-            doctor.reviews_count = 0  # Add review logic when implemented
-        context["recent_doctors"] = doctors
+        # Count statistics
+        context['doctors_count'] = stats['doctors_count']
+        context['patients_count'] = stats['patients_count']
+        context['appointments_count'] = Booking.objects.count()
 
-        # Get recent patients with their appointments
-        patients = User.objects.filter(role="patient").select_related("profile")[:5]
+        # Calculate total revenue
+        context['total_revenue'] = (
+            Booking.objects.filter(
+                status='completed'
+            ).select_related('doctor__profile').aggregate(
+                total=Sum('doctor__profile__price_per_consultation')
+            )['total'] or 0
+        )
+
+        # Get recent doctors with their stats in fewer queries
+        doctors = User.objects.filter(
+                role='doctor'
+            ).select_related('profile').annotate(
+                earned=Sum(
+                    'appointments__doctor__profile__price_per_consultation',
+                    filter=Q(appointments__status='completed')
+                )
+            )[:5]
+    
+        context['recent_doctors'] = doctors
+
+        # Get recent patients with their appointments efficiently
+        patients = User.objects.filter(
+                    role='patient'
+                ).select_related('profile').prefetch_related(
+                    'patient_appointments__doctor__profile'
+                )[:5]
+                
         for patient in patients:
-            latest_appointment = (
-                Booking.objects.filter(patient=patient)
-                .order_by("-appointment_date")
-                .first()
-            )
-            patient.last_visit = (
-                latest_appointment.appointment_date if latest_appointment else None
-            )
-            patient.total_paid = (
-                Booking.objects.filter(patient=patient, status="completed").aggregate(
-                    total=Sum("doctor__profile__price_per_consultation")
-                )["total"]
-                or 0
-            )
-        context["recent_patients"] = patients
+                    appointments = patient.patient_appointments.all()
+                    patient.last_visit = (
+                        max(a.appointment_date for a in appointments) 
+                        if appointments else None
+                    )
+                    patient.total_paid = sum(
+                        a.doctor.profile.price_per_consultation or 0
+                        for a in appointments if a.status == 'completed'
+                    )        
+    
+        context['recent_patients'] = patients
 
         # Get recent appointments
         context["recent_appointments"] = Booking.objects.select_related(
             "doctor", "doctor__profile", "patient", "patient__profile"
-        ).order_by("-appointment_date")[:5]
+        ).order_by('-appointment_date', '-appointment_time')[:5]
 
         # Add recent prescriptions
         context["recent_prescriptions"] = Prescription.objects.select_related(
-            "doctor", "patient", "booking"
+            'doctor__profile', 'patient__profile', 'booking'
         ).order_by("-created_at")[:10]
 
         return context

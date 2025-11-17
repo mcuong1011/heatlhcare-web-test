@@ -1,6 +1,8 @@
 from django.db import models
 from django.urls import reverse
 from django.utils.text import slugify
+from django.core.exceptions import ValidationError
+import re
 
 
 class Speciality(models.Model):
@@ -61,6 +63,26 @@ class Review(models.Model):
     review = models.TextField()
     created_at = models.DateTimeField(auto_now_add=True)
     updated_at = models.DateTimeField(auto_now=True)
+
+    def clean(self):
+        super().clean()
+        # Remove potentially dangerous HTML/script tags
+        dangerous_patterns = [
+            r'<script[^>]*>.*?</script>',
+            r'<iframe[^>]*>.*?</iframe>',
+            r'javascript:',
+            r'on\w+\s*=',  # event handlers like onclick, onload
+        ]
+        
+        for pattern in dangerous_patterns:
+            if re.search(pattern, self.review, re.IGNORECASE | re.DOTALL):
+                raise ValidationError({
+                    'review': 'Review contains invalid content. Please remove any scripts or HTML tags.'
+                })
+    
+    def save(self, *args, **kwargs):
+        self.full_clean()
+        super().save(*args, **kwargs)
 
     class Meta:
         ordering = ["-created_at"]

@@ -14,6 +14,7 @@ from accounts.forms import (
 from accounts.models import User
 from accounts.serializers import BasicUserInformationSerializer
 from utils.htmx import render_toast_message_for_api
+from django.db import transaction
 
 
 class RegisterDoctorView(CreateView):
@@ -122,6 +123,7 @@ class UpdateBasicUserInformationAPIView(LoginRequiredMixin, UpdateAPIView):
     def get_object(self):
         return self.request.user
 
+    @transaction.atomic  # Add transaction
     def put(self, request, *args, **kwargs):
         try:
             user = request.user
@@ -129,14 +131,21 @@ class UpdateBasicUserInformationAPIView(LoginRequiredMixin, UpdateAPIView):
             files = request.FILES
 
             # Update user information
-            user.first_name = data.get("first_name", user.first_name)
-            user.last_name = data.get("last_name", user.last_name)
+            user.first_name = data.get("first_name", user.first_name).strip()
+            user.last_name = data.get("last_name", user.last_name).strip()
+            
+            # Validate names are not empty
+            if not user.first_name or not user.last_name:
+                return render_toast_message_for_api(
+                    "Error", "First name and last name are required", "error"
+                )
+            
             user.save()
 
             # Update profile information
             user_profile = user.profile
             
-            # ✅ ADD: Validate DOB
+            # Validate DOB
             dob = data.get("dob")
             if dob:
                 from datetime import datetime
@@ -149,13 +158,26 @@ class UpdateBasicUserInformationAPIView(LoginRequiredMixin, UpdateAPIView):
                     user_profile.dob = dob_date
                 except ValueError:
                     return render_toast_message_for_api(
-                        "Error", "Invalid date format", "error"
+                        "Error", "Invalid date format. Use YYYY-MM-DD", "error"
                     )
             
-            user_profile.phone = data.get("phone", user_profile.phone)
+            # Validate and update phone
+            phone = data.get("phone", "").strip()
+            if phone:
+                # Basic phone validation
+                if not phone.replace("+", "").replace(" ", "").replace("-", "").isdigit():
+                    return render_toast_message_for_api(
+                        "Error", "Invalid phone number format", "error"
+                    )
+                user_profile.phone = phone
 
             # Handle avatar file upload
             if "avatar" in files:
+                # Validate file size (max 5MB)
+                if files["avatar"].size > 5 * 1024 * 1024:
+                    return render_toast_message_for_api(
+                        "Error", "Avatar file size must be less than 5MB", "error"
+                    )
                 user_profile.avatar = files["avatar"]
 
             user_profile.save()
@@ -167,4 +189,6 @@ class UpdateBasicUserInformationAPIView(LoginRequiredMixin, UpdateAPIView):
             import logging
             logger = logging.getLogger(__name__)
             logger.error(f"Profile update error: {str(e)}", exc_info=True)
-            return render_toast_message_for_api("Error", str(e), "error")
+            return render_toast_message_for_api(
+                "Error", "An error occurred while updating profile", "error"
+            )
