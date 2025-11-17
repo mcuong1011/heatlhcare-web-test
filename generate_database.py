@@ -70,30 +70,29 @@ SPECIALIZATIONS = [
 
 # Cập nhật tên thành phố, tỉnh có dấu tiếng Việt
 CITIES_PROVINCES = [
-    "Hà Nội", "TP. Hồ Chí Minh", "Đà Nẵng", "Hải Phòng", "Cần Thơ", "Nha Trang",
-    "Huế", "Vũng Tàu", "Quy Nhơn", "Thanh Hóa", "Vinh", "Buôn Ma Thuột", "Đà Lạt", "Biên Hòa",
+    "Hà Nội",
 ]
 
 DIVISIONS = [
-    "Đồng bằng sông Hồng", "Vùng Đông Bắc", "Vùng Tây Bắc", "Bắc Trung Bộ",
-    "Nam Trung Bộ", "Tây Nguyên", "Đông Nam Bộ", "Đồng bằng sông Cửu Long",
+    "Việt Nam",
 ]
 
 # Cập nhật tên đường, quận/huyện có dấu tiếng Việt
 STREETS = [
-    "Trần Hưng Đạo", "Nguyễn Huệ", "Lê Lợi", "Phạm Văn Đồng", "Võ Nguyên Giáp",
-    "Hai Bà Trưng", "Lý Thường Kiệt", "Quang Trung", "Nguyễn Trãi", "Phố Huế"
+    "Trần Hưng Đạo", "Hai Bà Trưng", "Lý Thường Kiệt", "Quang Trung", "Nguyễn Trãi", "Phố Huế",
+    "Bà Triệu", "Phan Đình Phùng", "Hoàng Diệu", "Nguyễn Thái Học", "Giảng Võ", "Láng",
+    "Cầu Giấy", "Xuân Thủy", "Kim Mã", "Lạc Long Quân", "Âu Cơ", "Tràng Thi",
+    "Nguyễn Chí Thanh", "Tôn Đức Thắng", "Đê La Thành", "Xã Đàn", "Giải Phóng", "Trường Chinh"
 ]
 
-DISTRICTS = [
-    "Ba Đình", "Hoàn Kiếm", "Đống Đa", "Quận 1", "Quận 3", "Bình Thạnh",
-    "Sơn Trà", "Hải Châu", "Ninh Kiều", "Tây Hồ"
+# Cập nhật các quận/huyện của Hà Nội
+HANOI_DISTRICTS = [
+    "Ba Đình", "Hoàn Kiếm", "Đống Đa", "Hai Bà Trưng", "Cầu Giấy", "Tây Hồ",
+    "Thanh Xuân", "Hà Đông", "Long Biên", "Hoàng Mai", "Nam Từ Liêm", "Bắc Từ Liêm"
 ]
 
-PATIENT_DISTRICTS = [
-    "Cầu Giấy", "Tân Bình", "Thanh Khê", "Gò Vấp", "Hai Bà Trưng",
-    "Quận 7", "Ngô Quyền", "Thủ Đức", "Hà Đông", "Bình Tân"
-]
+DISTRICTS = HANOI_DISTRICTS
+PATIENT_DISTRICTS = HANOI_DISTRICTS
 
 BLOOD_GROUPS = ["A+", "A-", "B+", "B-", "O+", "O-", "AB+", "AB-"]
 ALLERGIES = [
@@ -154,25 +153,30 @@ def _generate_random_dob(start_year: int, end_year: int) -> str:
 
 
 def _create_user(pk: int, role: str, role_id: int) -> Tuple[Dict[str, Any], str]:
-    """
-    Hàm trợ giúp tạo đối tượng người dùng (user) và trả về dữ liệu
-    người dùng cùng với giới tính (để dùng cho profile).
-    """
     gender = random.choice(["male", "female"])
 
     if gender == "male":
-        first_name_field = random.choice(MALE_FIRST_NAMES)
-        last_name = random.choice(MALE_LAST_NAMES)
+        first_name_field = random.choice(MALE_FIRST_NAMES)  # Ví dụ: "Văn Anh"
+        last_name = random.choice(MALE_LAST_NAMES)          # Ví dụ: "Nguyễn"
     else:
         first_name_field = random.choice(FEMALE_FIRST_NAMES)
         last_name = random.choice(FEMALE_LAST_NAMES)
 
-    # Sử dụng _slugify để tạo email sạch
-    first_name_slug = _slugify(first_name_field.split()[-1]) # Lấy tên chính
-    last_name_slug = _slugify(last_name)
-    
+    # Tạo email kiểu nvanh@gmail.com (Nguyễn Văn Anh)
+    last_name_slug = _slugify(last_name)           # "Nguyễn" -> "nguyen"
+    last_initial = last_name_slug[0]               # "n"
+
+    name_parts = first_name_field.split()          # ["Văn", "Anh"]
+    if len(name_parts) == 1:
+        given_slug = _slugify(name_parts[0])       # 1 từ: dùng luôn, vd "anh"
+    else:
+        first_initial = _slugify(name_parts[0])[0] # "Văn" -> "v"
+        main_slug = _slugify(name_parts[-1])       # "Anh" -> "anh"
+        given_slug = first_initial + main_slug     # "vanh"
+
+    local_part = f"{last_initial}{given_slug}"     # "n" + "vanh" -> "nvanh"
     username = f"{role}{role_id}"
-    email = f"{first_name_slug}.{last_name_slug}@example.com"
+    email = f"{local_part}@gmail.com"
 
     user_data: Dict[str, Any] = {
         "model": MODEL_USER,
@@ -181,11 +185,12 @@ def _create_user(pk: int, role: str, role_id: int) -> Tuple[Dict[str, Any], str]
             "password": PASSWORD_HASH,
             "username": username,
             "email": email,
-            "first_name": first_name_field,
-            "last_name": last_name,
+            # Đảo để full name là: Họ + Tên
+            "first_name": last_name,
+            "last_name": first_name_field,
             "role": role,
             "is_active": True,
-            "date_joined": "2023-01-01T00:00:00Z",
+            "date_joined": "2025-01-01T00:00:00Z",
         },
     }
     return user_data, gender

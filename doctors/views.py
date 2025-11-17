@@ -29,7 +29,8 @@ from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.mixins import LoginRequiredMixin
 
-from bookings.models import Booking, Prescription, Review
+from bookings.models import Booking, Prescription
+from core.models import Review
 from core.decorators import user_is_doctor
 from doctors.forms import DoctorProfileForm, PrescriptionForm
 from doctors.models import Experience
