@@ -15,6 +15,7 @@ from accounts.models import User
 from accounts.serializers import BasicUserInformationSerializer
 from utils.htmx import render_toast_message_for_api
 from django.db import transaction
+from django.core.exceptions import ValidationError
 
 
 class RegisterDoctorView(CreateView):
@@ -130,61 +131,89 @@ class UpdateBasicUserInformationAPIView(LoginRequiredMixin, UpdateAPIView):
             data = request.data if hasattr(request, 'data') else request.POST
             files = request.FILES
 
-            # Update user information
-            user.first_name = data.get("first_name", user.first_name).strip()
-            user.last_name = data.get("last_name", user.last_name).strip()
-            
-            # Validate names are not empty
-            if not user.first_name or not user.last_name:
-                return render_toast_message_for_api(
-                    "Error", "First name and last name are required", "error"
-                )
-            
-            user.save()
+            # Create a savepoint for rollback on validation errors
+            sid = transaction.savepoint()
 
-            # Update profile information
-            user_profile = user.profile
-            
-            # Validate DOB
-            dob = data.get("dob")
-            if dob:
-                from datetime import datetime
-                try:
-                    dob_date = datetime.strptime(dob, "%Y-%m-%d").date()
-                    if dob_date > datetime.now().date():
+            try:
+                # Update user information
+                user.first_name = data.get("first_name", user.first_name).strip()
+                user.last_name = data.get("last_name", user.last_name).strip()
+                
+                # Validate names are not empty
+                if not user.first_name or not user.last_name:
+                    transaction.savepoint_rollback(sid)
+                    return render_toast_message_for_api(
+                        "Error", "First name and last name are required", "error"
+                    )
+                
+                user.full_clean()  # Validate model
+                user.save()
+
+                # Update profile information
+                user_profile = user.profile
+                
+                # Validate DOB
+                dob = data.get("dob")
+                if dob:
+                    from datetime import datetime
+                    try:
+                        dob_date = datetime.strptime(dob, "%Y-%m-%d").date()
+                        if dob_date > datetime.now().date():
+                            transaction.savepoint_rollback(sid)
+                            return render_toast_message_for_api(
+                                "Error", "Date of birth cannot be in the future", "error"
+                            )
+                        user_profile.dob = dob_date
+                    except ValueError:
+                        transaction.savepoint_rollback(sid)
                         return render_toast_message_for_api(
-                            "Error", "Date of birth cannot be in the future", "error"
+                            "Error", "Invalid date format. Use YYYY-MM-DD", "error"
                         )
-                    user_profile.dob = dob_date
-                except ValueError:
-                    return render_toast_message_for_api(
-                        "Error", "Invalid date format. Use YYYY-MM-DD", "error"
-                    )
-            
-            # Validate and update phone
-            phone = data.get("phone", "").strip()
-            if phone:
-                # Basic phone validation
-                if not phone.replace("+", "").replace(" ", "").replace("-", "").isdigit():
-                    return render_toast_message_for_api(
-                        "Error", "Invalid phone number format", "error"
-                    )
-                user_profile.phone = phone
+                
+                # Validate and update phone
+                phone = data.get("phone", "").strip()
+                if phone:
+                    # Basic phone validation
+                    if not phone.replace("+", "").replace(" ", "").replace("-", "").isdigit():
+                        transaction.savepoint_rollback(sid)
+                        return render_toast_message_for_api(
+                            "Error", "Invalid phone number format", "error"
+                        )
+                    user_profile.phone = phone
 
-            # Handle avatar file upload
-            if "avatar" in files:
-                # Validate file size (max 5MB)
-                if files["avatar"].size > 5 * 1024 * 1024:
-                    return render_toast_message_for_api(
-                        "Error", "Avatar file size must be less than 5MB", "error"
-                    )
-                user_profile.avatar = files["avatar"]
+                # Handle avatar file upload
+                if "avatar" in files:
+                    # Validate file size (max 5MB)
+                    if files["avatar"].size > 5 * 1024 * 1024:
+                        transaction.savepoint_rollback(sid)
+                        return render_toast_message_for_api(
+                            "Error", "Avatar file size must be less than 5MB", "error"
+                        )
+                    # Validate file type
+                    allowed_types = ['image/jpeg', 'image/png', 'image/gif', 'image/webp']
+                    if files["avatar"].content_type not in allowed_types:
+                        transaction.savepoint_rollback(sid)
+                        return render_toast_message_for_api(
+                            "Error", "Only JPEG, PNG, GIF, and WebP images are allowed", "error"
+                        )
+                    user_profile.avatar = files["avatar"]
 
-            user_profile.save()
+                user_profile.full_clean()  # Validate model
+                user_profile.save()
+                
+                transaction.savepoint_commit(sid)
 
-            return render_toast_message_for_api(
-                "Information", "Updated successfully", "success"
-            )
+                return render_toast_message_for_api(
+                    "Information", "Updated successfully", "success"
+                )
+            except ValidationError as e:
+                transaction.savepoint_rollback(sid)
+                error_messages = []
+                for field, errors in e.message_dict.items():
+                    error_messages.extend(errors)
+                return render_toast_message_for_api(
+                    "Error", "; ".join(error_messages), "error"
+                )
         except Exception as e:
             import logging
             logger = logging.getLogger(__name__)

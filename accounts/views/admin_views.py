@@ -42,20 +42,20 @@ class AdminDashboardView(AdminRequiredMixin, TemplateView):
         context['total_revenue'] = (
             Booking.objects.filter(
                 status='completed'
-            ).select_related('doctor__profile').aggregate(
-                total=Sum('doctor__profile__price_per_consultation')
+            ).aggregate(
+                total=Sum(F('doctor__profile__price_per_consultation'))
             )['total'] or 0
         )
 
         # Get recent doctors with their stats in fewer queries
         doctors = User.objects.filter(
-                role='doctor'
-            ).select_related('profile').annotate(
-                earned=Sum(
-                    'appointments__doctor__profile__price_per_consultation',
-                    filter=Q(appointments__status='completed')
-                )
-            )[:5]
+            role='doctor'
+        ).select_related('profile').annotate(
+            earned=Sum(
+                F('profile__price_per_consultation'),
+                filter=Q(appointments__status='completed')
+            )
+        ).order_by('-id')[:5]
     
         context['recent_doctors'] = doctors
 

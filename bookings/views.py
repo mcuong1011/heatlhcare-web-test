@@ -68,6 +68,7 @@ class BookingView(LoginRequiredMixin, View):
             slot_count = 0
 
             while current_time < end_time and slot_count < max_slots:
+                slot_count += 1
                 # Skip past times
                 if date == now.date() and current_time.time() < now.time():
                     current_time += timedelta(minutes=slot_duration)
@@ -81,7 +82,7 @@ class BookingView(LoginRequiredMixin, View):
                 })
             
                 current_time += timedelta(minutes=slot_duration)
-                slot_count += 1
+                
 
         return time_slots
 

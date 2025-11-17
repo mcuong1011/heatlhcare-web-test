@@ -29,7 +29,7 @@ from django.contrib import messages
 from django.contrib.auth import update_session_auth_hash
 from django.contrib.auth.mixins import LoginRequiredMixin
 
-from bookings.models import Booking, Prescription
+from bookings.models import Booking, Prescription, Review
 from core.decorators import user_is_doctor
 from doctors.forms import DoctorProfileForm, PrescriptionForm
 from doctors.models import Experience
@@ -47,6 +47,7 @@ from accounts.models import User
 from django.db import transaction
 from django.db.models import Prefetch
 
+
 days = {
     0: Sunday,
     1: Monday,
@@ -56,7 +57,7 @@ days = {
     5: Friday,
     6: Saturday,
 }
-
+import re
 
 class DoctorDashboardView(DoctorRequiredMixin, TemplateView):
     template_name = "doctors/dashboard.html"
@@ -445,7 +446,7 @@ class DoctorsListView(ListView):
         search_query = self.request.GET.get("q", "").strip()
         if search_query:
             # Limit search query length to prevent DOS
-            search_query = search_query[:100]
+            search_query = re.sub(r'[^\w\s\-\']', '', search_query)[:100]
             queryset = queryset.filter(
                 Q(first_name__icontains=search_query)
                 | Q(last_name__icontains=search_query)
