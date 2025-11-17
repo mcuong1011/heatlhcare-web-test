@@ -44,6 +44,7 @@ from patients.forms import ChangePasswordForm
 from utils.htmx import render_toast_message_for_api
 from accounts.models import User
 from django.db import transaction
+from django.db.models import Prefetch
 
 days = {
     0: Sunday,
@@ -429,8 +430,16 @@ class DoctorsListView(ListView):
 
     def get_queryset(self):
         queryset = self.model.objects.filter(
-            role=User.RoleChoices.DOCTOR, is_superuser=False, is_active=True
-        ).select_related("profile")
+            role=User.RoleChoices.DOCTOR, 
+            is_superuser=False, 
+            is_active=True
+        ).select_related("profile").prefetch_related(
+            # FIX: Prefetch reviews to avoid N+1
+            Prefetch(
+                'reviews_received',
+                queryset=Review.objects.select_related('patient', 'patient__profile')
+            )
+        )
 
         # Handle search query
         search_query = self.request.GET.get("q")
