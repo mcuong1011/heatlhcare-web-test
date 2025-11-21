@@ -18,8 +18,8 @@ TIME_ZONE = os.environ.get("TIME_ZONE", "Asia/Bangkok")
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("POSTGRES_DEV_DB", "clinicflow_dev"),
-        "USER": os.environ.get("POSTGRES_DEV_USER", "clinicflow_dev"),
+        "NAME": os.environ.get("POSTGRES_DEV_DB", "RoydClinic_dev"),
+        "USER": os.environ.get("POSTGRES_DEV_USER", "RoydClinic_dev"),
         "PASSWORD": os.environ.get("POSTGRES_DEV_PASSWORD", ""),
         "HOST": os.environ.get("POSTGRES_DEV_HOST", "db"),
         "PORT": os.environ.get("POSTGRES_DEV_PORT", "5432"),

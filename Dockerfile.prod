@@ -40,4 +40,4 @@ RUN python manage.py collectstatic --noinput
 EXPOSE 8000
 
 # Use Gunicorn to serve the application
-CMD ["gunicorn", "ClinicFlow.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3"]
+CMD ["gunicorn", "RoydClinic.wsgi:application", "--bind", "0.0.0.0:8000", "--workers", "3"]

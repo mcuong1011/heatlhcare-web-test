@@ -1,10 +1,10 @@
-# ClinicFlow/settings/base.py
+# RoydClinic/settings/base.py
 
 import os
 from pathlib import Path
 
 # Build paths inside the project like this: BASE_DIR / "subdir".
-BASE_DIR = Path(__file__).resolve().parent.parent.parent  # settings/ → ClinicFlow/ → root
+BASE_DIR = Path(__file__).resolve().parent.parent.parent  # settings/ → RoydClinic/ → root
 
 # SECURITY WARNING: keep the secret key used in production secret!
 SECRET_KEY = os.environ.get("DJANGO_SECRET_KEY")
@@ -81,7 +81,7 @@ MIDDLEWARE = [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-ROOT_URLCONF = "ClinicFlow.urls"
+ROOT_URLCONF = "RoydClinic.urls"
 
 TEMPLATES = [
     {
@@ -99,14 +99,14 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = "ClinicFlow.wsgi.application"
+WSGI_APPLICATION = "RoydClinic.wsgi.application"
 
 # Default database placeholder – override in dev.py / prod.py
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",
-        "NAME": os.environ.get("POSTGRES_DB", "clinicflow"),
-        "USER": os.environ.get("POSTGRES_USER", "clinicflow"),
+        "NAME": os.environ.get("POSTGRES_DB", "RoydClinic"),
+        "USER": os.environ.get("POSTGRES_USER", "RoydClinic"),
         "PASSWORD": os.environ.get("POSTGRES_PASSWORD", ""),
         "HOST": os.environ.get("POSTGRES_HOST", "db"),
         "PORT": os.environ.get("POSTGRES_PORT", "5432"),

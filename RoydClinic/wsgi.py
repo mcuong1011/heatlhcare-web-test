@@ -1,5 +1,5 @@
 """
-WSGI config for ClinicFlow project.
+WSGI config for RoydClinic project.
 
 It exposes the WSGI callable as a module-level variable named ``application``.
 
@@ -11,6 +11,6 @@ import os
 
 from django.core.wsgi import get_wsgi_application
 
-os.environ.setdefault("DJANGO_SETTINGS_MODULE", "ClinicFlow.settings.prod")
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "RoydClinic.settings.prod")
 
 application = get_wsgi_application()

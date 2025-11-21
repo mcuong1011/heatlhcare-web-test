@@ -3,10 +3,10 @@
   <path d="M40 20 h20 v20 h20 v20 h-20 v20 h-20 v-20 h-20 v-20 h20 z" 
         fill="#1976D2"/>
   
-  <!-- Text "ClinicFlow" -->
+  <!-- Text "RoydClinic" -->
   <text x="100" y="65" 
         font-family="Arial, sans-serif" 
         font-size="48" 
         font-weight="bold" 
-        fill="#1976D2">ClinicFlow</text>
+        fill="#1976D2">RoydClinic</text>
 </svg>

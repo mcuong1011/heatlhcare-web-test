@@ -18,9 +18,9 @@ from accounts.views.admin_views import (
     RevenueReportView,
 )
 
-admin.site.site_header = "ClinicFlow Admin"
-admin.site.site_title = "ClinicFlow Admin Portal"
-admin.site.index_title = "Welcome to ClinicFlow Admin Portal"
+admin.site.site_header = "RoydClinic Admin"
+admin.site.site_title = "RoydClinic Admin Portal"
+admin.site.index_title = "Welcome to RoydClinic Admin Portal"
 
 urlpatterns = [
     path("super-admin/", admin.site.urls),
