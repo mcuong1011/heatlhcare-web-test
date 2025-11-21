@@ -176,7 +176,7 @@ def _create_user(pk: int, role: str, role_id: int) -> Tuple[Dict[str, Any], str]
 
     local_part = f"{last_initial}{given_slug}"     # "n" + "vanh" -> "nvanh"
     username = f"{role}{role_id}"
-    email = f"{local_part}@gmail.com"
+    email = f"{local_part}_{pk}@gmail.com"
 
     user_data: Dict[str, Any] = {
         "model": MODEL_USER,

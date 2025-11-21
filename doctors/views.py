@@ -47,6 +47,11 @@ from utils.htmx import render_toast_message_for_api
 from accounts.models import User
 from django.db import transaction
 from django.db.models import Prefetch
+import logging
+import re
+
+# Configure logger
+logger = logging.getLogger(__name__)
 
 
 days = {
@@ -58,7 +63,7 @@ days = {
     5: Friday,
     6: Saturday,
 }
-import re
+
 
 class DoctorDashboardView(DoctorRequiredMixin, TemplateView):
     template_name = "doctors/dashboard.html"
@@ -245,8 +250,6 @@ class DoctorProfileView(DetailView):
         return context
 
 
-from django.db import transaction
-
 class UpdateEducationAPIView(DoctorRequiredMixin, UpdateAPIView):
     queryset = Experience.objects.all()
     serializer_class = EducationSerializer
@@ -309,11 +312,6 @@ class UpdateEducationAPIView(DoctorRequiredMixin, UpdateAPIView):
             "Education", "Updated successfully", "success"
         )
 
-from django.db import transaction
-import logging
-
-# Configure logger
-logger = logging.getLogger(__name__)
 
 class UpdateExperienceAPIView(DoctorRequiredMixin, UpdateAPIView):
     queryset = Experience.objects.all()
@@ -389,6 +387,7 @@ class UpdateExperienceAPIView(DoctorRequiredMixin, UpdateAPIView):
         return render_toast_message_for_api(
             "Experience", "Updated successfully", "success"
         )
+
 
 class UpdateRegistrationNumberAPIView(DoctorRequiredMixin, UpdateAPIView):
     serializer_class = RegistrationNumberSerializer
@@ -589,7 +588,6 @@ class MyPatientsView(DoctorRequiredMixin, ListView):
     context_object_name = "patients"
 
     def get_queryset(self):
-        # Get unique patients who have appointments with this doctor
         return (
             User.objects.filter(
                 patient_appointments__doctor=self.request.user, role="patient"
